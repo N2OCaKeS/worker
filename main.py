@@ -1,13 +1,37 @@
 import os
 import time
 import threading
+import json
 from flask import Flask, jsonify
 import requests
 from collections import defaultdict, Counter
 from typing import Dict, List
 
 # ===== НАСТРОЙКИ ТЕСТА (одинаковые на всех нодах) =====
-TARGET_URLS = os.getenv("TARGET_URLS", "https://example.com").split(",")
+RAW_TARGET_URLS = os.getenv("TARGET_URLS", "https://example.com").strip()
+
+TARGET_URLS = []
+
+# === Пробуем распарсить как JSON ===
+try:
+    parsed = json.loads(RAW_TARGET_URLS)
+    if isinstance(parsed, list):
+        TARGET_URLS = parsed
+    elif isinstance(parsed, str):
+        TARGET_URLS = [parsed]
+    else:
+        raise ValueError("TARGET_URLS должен быть строкой или списком")
+except json.JSONDecodeError:
+    # Не JSON → обрабатываем как обычную строку
+    if "," in RAW_TARGET_URLS:
+        TARGET_URLS = [url.strip() for url in RAW_TARGET_URLS.split(",") if url.strip()]
+    else:
+        TARGET_URLS = [RAW_TARGET_URLS]
+
+# === Защита от пустого списка ===
+if not TARGET_URLS:
+    raise ValueError("Не указан ни один TARGET_URL")
+
 THREADS = int(os.getenv("THREADS", "10"))
 DURATION = int(os.getenv("DURATION", "60"))  # в секундах
 
